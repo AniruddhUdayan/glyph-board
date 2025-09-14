@@ -88,7 +88,7 @@ try {
             roomId: room.id
         })
     } catch (error) {
-        return res.status(500).json({ message: "Room already exists" });       
+        return res.status(500).json({ message: "Room already created" });       
     }
 });
 
