@@ -92,6 +92,28 @@ try {
     }
 });
 
+app.get("/chats/:roomId", async (req, res) => {
+    const roomId = req.params.roomId;
+    if(!roomId) {
+        return res.status(400).json({ message: "Invalid room id" });
+    }
+    const messages = await prisma.chat.findMany({
+        where: {
+            roomId: roomId
+        },
+        orderBy: {
+            id: "desc"
+        },
+        take: 50
+    })
+
+    res.json({
+        messages
+    })
+})
+
+
+
 app.listen(3001, () => {
     console.log("Server is running on port 3001");
 });
