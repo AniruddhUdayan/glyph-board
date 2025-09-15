@@ -92,10 +92,14 @@ try {
     }
 });
 
-app.get("/chats/:roomId", async (req, res) => {
+app.get("/chats/:roomId",middleware, async (req, res) => {
     const roomId = req.params.roomId;
     if(!roomId) {
         return res.status(400).json({ message: "Invalid room id" });
+    }
+    const userId = req.userId;
+    if(!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
     }
     const messages = await prisma.chat.findMany({
         where: {
@@ -112,7 +116,24 @@ app.get("/chats/:roomId", async (req, res) => {
     })
 })
 
-
+app.get("/room/:slug", middleware, async (req, res) => {
+    const slug = req.params.slug;
+    if(!slug) {
+        return res.status(400).json({ message: "Invalid slug" });
+    }
+    
+    const room = await prisma.room.findUnique({
+        where: {
+            slug: slug
+        }
+    })
+    if(!room) {
+        return res.status(404).json({ message: "Room not found" });
+    }
+    res.json({
+        room
+    })
+})
 
 app.listen(3001, () => {
     console.log("Server is running on port 3001");
