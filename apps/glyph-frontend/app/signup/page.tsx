@@ -1,29 +1,27 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import AuthPage from '../../components/AuthPage';
-import type { CreateUser } from '../../lib/types';
+import ProtectedRoute from '../../components/ProtectedRoute';
+import { useAuth } from '../../lib/auth-context';
+import type { CreateUser } from '../../lib/schemas';
 
 export default function SignUp() {
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const { signup } = useAuth();
 
   const handleSignup = async (data: CreateUser) => {
     setLoading(true);
     
-    try {
-      console.log('Signing up with:', data);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      router.push('/canvas/room-' + Date.now());
-    } catch (error) {
-      console.error('Signup error:', error);
-    } finally {
-      setLoading(false);
-    }
+    await signup(data.email, data.password, data.name);
+    
+    setLoading(false);
+    // ProtectedRoute will handle redirect on success
   };
 
-  return <AuthPage mode="signup" onSubmit={handleSignup} loading={loading} />;
+  return (
+    <ProtectedRoute requireAuth={false}>
+      <AuthPage mode="signup" onSubmit={handleSignup} loading={loading} />
+    </ProtectedRoute>
+  );
 }

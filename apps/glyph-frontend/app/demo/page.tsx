@@ -14,16 +14,10 @@ import {
   isPointInElement,
   generateId
 } from '../../lib/canvas-utils';
-import { CanvasWebSocket } from '../../lib/websocket';
-import { testWebSocketConnection } from '../../lib/websocket-debug';
-import CanvasRenderer from './CanvasRenderer';
-import Toolbar from './Toolbar';
+import CanvasRenderer from '../../components/canvas/CanvasRenderer';
+import Toolbar from '../../components/canvas/Toolbar';
 
-interface CanvasProps {
-  roomId: string;
-}
-
-export default function Canvas({ roomId }: CanvasProps) {
+export default function DemoCanvas() {
   const router = useRouter();
   const [canvasState, setCanvasState] = useState<CanvasState>({
     elements: [],
@@ -48,197 +42,34 @@ export default function Canvas({ roomId }: CanvasProps) {
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState<Point | null>(null);
   const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
-  const [wsConnection, setWsConnection] = useState<CanvasWebSocket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const pencilPointsRef = useRef<Point[]>([]);
-  const currentUserIdRef = useRef<string | null>(null);
 
   const MIN_ZOOM = 0.1;
   const MAX_ZOOM = 5.0;
 
   // Handle back navigation
   const handleBack = useCallback(() => {
-    // Show confirmation if connected and there are elements on canvas
-    if (isConnected && canvasState.elements.length > 0) {
-      const confirmLeave = window.confirm(
-        'Are you sure you want to leave? Your work is automatically saved, but you will disconnect from the collaborative session.'
-      );
-      if (!confirmLeave) {
-        return;
-      }
-    }
-    
-    if (wsConnection) {
-      wsConnection.disconnect();
-      setWsConnection(null);
-    }
-    router.push('/dashboard');
-  }, [wsConnection, router, isConnected, canvasState.elements.length]);
+    router.push('/');
+  }, [router]);
 
-  // Initialize WebSocket connection
+  // Prevent browser zoom on the entire page when in canvas
   useEffect(() => {
-    const initializeWebSocket = async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-          console.error('No authentication token found in localStorage');
-          setConnectionError('No authentication token found');
-          return;
-        }
-
-        console.log('Initializing WebSocket connection for room:', roomId);
-        console.log('Token found:', token ? 'Yes' : 'No');
-        
-        const ws = new CanvasWebSocket(token);
-        
-        // Set up event listeners
-        ws.onConnectionStatus((connected) => {
-          setIsConnected(connected);
-          if (!connected) {
-            setConnectionError('Connection lost');
-          } else {
-            setConnectionError(null);
-          }
-        });
-
-        ws.onError((error) => {
-          setConnectionError(error);
-        });
-
-        ws.onShapeCreate((shape, senderId) => {
-          if (senderId !== currentUserIdRef.current) {
-            setCanvasState(prev => ({
-              ...prev,
-              elements: [...prev.elements, shape]
-            }));
-          }
-        });
-
-        ws.onShapeUpdate((shape, senderId) => {
-          if (senderId !== currentUserIdRef.current) {
-            setCanvasState(prev => ({
-              ...prev,
-              elements: prev.elements.map(el => 
-                el.id === shape.id ? shape : el
-              )
-            }));
-          }
-        });
-
-        ws.onShapeDelete((shapeId, senderId) => {
-          if (senderId !== currentUserIdRef.current) {
-            setCanvasState(prev => ({
-              ...prev,
-              elements: prev.elements.filter(el => el.id !== shapeId),
-              selectedElements: prev.selectedElements.filter(id => id !== shapeId)
-            }));
-          }
-        });
-
-        ws.onShapesLoaded((shapes) => {
-          setCanvasState(prev => ({
-            ...prev,
-            elements: shapes
-          }));
-        });
-
-        // Connect and join room
-        console.log('Attempting to connect WebSocket...');
-        await ws.connect();
-        console.log('WebSocket connected successfully');
-        
-        console.log('Attempting to join room:', roomId);
-        await ws.joinRoom(roomId);
-        console.log('Successfully joined room:', roomId);
-        
-        // Load existing shapes
-        console.log('Loading existing shapes...');
-        ws.loadShapes();
-        
-        setWsConnection(ws);
-        console.log('WebSocket initialization complete');
-
-        // Get current user ID from token
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          currentUserIdRef.current = payload.userId;
-        } catch (error) {
-          console.error('Error parsing token:', error);
-        }
-
-      } catch (error: any) {
-        console.error('WebSocket initialization error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          roomId: roomId
-        });
-        setConnectionError(error.message || 'Failed to connect to server');
-      }
-    };
-
-    initializeWebSocket();
-
-    // Make debug function available in console
-    if (typeof window !== 'undefined') {
-      (window as any).testWebSocketConnection = testWebSocketConnection;
-    }
-
-    return () => {
-      wsConnection?.disconnect();
-    };
-  }, [roomId]);
-
-  // Handle browser navigation and cleanup
-  useEffect(() => {
-    // Handle browser back button
-    const handlePopState = (e: PopStateEvent) => {
-      // Show confirmation if connected and there are elements
-      if (isConnected && canvasState.elements.length > 0) {
-        const confirmLeave = window.confirm(
-          'Are you sure you want to leave? Your work is automatically saved, but you will disconnect from the collaborative session.'
-        );
-        if (!confirmLeave) {
-          // Prevent navigation by pushing current state back
-          window.history.pushState(null, '', window.location.href);
-          return;
-        }
-      }
-      
-      if (wsConnection) {
-        wsConnection.disconnect();
-        setWsConnection(null);
-      }
-    };
-
-    // Handle page unload (refresh, close tab, navigate away)
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (wsConnection) {
-        wsConnection.disconnect();
-      }
-      
-      // Show browser confirmation dialog if there's work to lose
-      if (isConnected && canvasState.elements.length > 0) {
+    const preventBrowserZoom = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        e.returnValue = 'Are you sure you want to leave? Your work is automatically saved.';
-        return 'Are you sure you want to leave? Your work is automatically saved.';
       }
     };
 
-    window.addEventListener('popstate', handlePopState);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
+    document.addEventListener('wheel', preventBrowserZoom, { passive: false });
+    
     return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('wheel', preventBrowserZoom);
     };
-  }, [wsConnection, isConnected, canvasState.elements.length]);
+  }, []);
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Handle Escape key to go back
       if (e.key === 'Escape' && !textInput) {
         e.preventDefault();
         handleBack();
@@ -252,22 +83,6 @@ export default function Canvas({ roomId }: CanvasProps) {
     };
   }, [handleBack, textInput]);
 
-  // Prevent browser zoom on the entire page when in canvas
-  useEffect(() => {
-    const preventBrowserZoom = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-      }
-    };
-
-    // Add event listener to document to catch all wheel events
-    document.addEventListener('wheel', preventBrowserZoom, { passive: false });
-    
-    return () => {
-      document.removeEventListener('wheel', preventBrowserZoom);
-    };
-  }, []);
-
   const getMousePosition = useCallback((e: React.MouseEvent<HTMLCanvasElement>): Point => {
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
@@ -278,7 +93,6 @@ export default function Canvas({ roomId }: CanvasProps) {
   }, []);
 
   const getWorldPosition = useCallback((screenPoint: Point): Point => {
-    // Convert screen coordinates to world coordinates accounting for zoom and viewport
     return {
       x: (screenPoint.x - canvasState.viewportX) / canvasState.zoom,
       y: (screenPoint.y - canvasState.viewportY) / canvasState.zoom,
@@ -295,39 +109,43 @@ export default function Canvas({ roomId }: CanvasProps) {
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const screenPoint = getMousePosition(e);
     const worldPoint = getWorldPosition(screenPoint);
-    
-    // Close text input if clicking elsewhere (but not if clicking on the input itself)
-    if (textInput) {
-      if (textInput.value.trim()) {
-        // Create text element from input
-        const textElement = createTextElement({ x: textInput.x, y: textInput.y }, textInput.value);
-        const newElements = [...canvasState.elements, textElement];
-        setCanvasState(prev => ({ ...prev, elements: newElements }));
-        addToHistory(newElements);
-      }
-      setTextInput(null);
-      
-      // Don't continue with other tool actions if we were finishing text input
-      if (canvasState.selectedTool === 'text') {
+
+    if (canvasState.selectedTool === 'select') {
+      if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+        setIsPanning(true);
+        setLastPanPoint(screenPoint);
         return;
       }
-    }
-    
-    if (canvasState.selectedTool === 'select') {
-      // Handle canvas panning - use screen coordinates for panning
-      setIsPanning(true);
-      setLastPanPoint(screenPoint);
-    } else if (canvasState.selectedTool === 'pencil') {
-      // Start pencil drawing - use world coordinates for drawing
-      pencilPointsRef.current = [worldPoint];
+
+      const clickedElement = canvasState.elements
+        .slice()
+        .reverse()
+        .find(el => isPointInElement(worldPoint, el));
+
+      if (clickedElement) {
+        setCanvasState(prev => ({
+          ...prev,
+          selectedElements: [clickedElement.id],
+          elements: prev.elements.map(el => ({
+            ...el,
+            isSelected: el.id === clickedElement.id
+          }))
+        }));
+      } else {
+        setCanvasState(prev => ({
+          ...prev,
+          selectedElements: [],
+          elements: prev.elements.map(el => ({ ...el, isSelected: false }))
+        }));
+      }
+
       setDrawingState({
-        isDrawing: true,
+        isDrawing: false,
         startPoint: worldPoint,
         currentElement: null,
         dragOffset: null,
       });
     } else if (canvasState.selectedTool === 'eraser') {
-      // Handle eraser - use world coordinates for element detection
       const elementToErase = canvasState.elements
         .slice()
         .reverse()
@@ -337,21 +155,14 @@ export default function Canvas({ roomId }: CanvasProps) {
         const newElements = canvasState.elements.filter(el => el.id !== elementToErase.id);
         setCanvasState(prev => ({ ...prev, elements: newElements }));
         addToHistory(newElements);
-        
-        // Send delete to WebSocket
-        wsConnection?.deleteShape(elementToErase.id);
       }
     } else if (canvasState.selectedTool === 'text') {
-      // Handle text creation - show input box at click position
-      const canvas = e.currentTarget;
-      const rect = canvas.getBoundingClientRect();
       setTextInput({
         x: worldPoint.x,
         y: worldPoint.y,
         value: ''
       });
     } else {
-      // Start drawing shapes - use world coordinates for drawing
       setDrawingState({
         isDrawing: true,
         startPoint: worldPoint,
@@ -365,7 +176,6 @@ export default function Canvas({ roomId }: CanvasProps) {
     const screenPoint = getMousePosition(e);
 
     if (isPanning && lastPanPoint && canvasState.selectedTool === 'select') {
-      // Handle canvas panning - use screen coordinates for smooth panning
       const deltaX = screenPoint.x - lastPanPoint.x;
       const deltaY = screenPoint.y - lastPanPoint.y;
       
@@ -384,63 +194,66 @@ export default function Canvas({ roomId }: CanvasProps) {
     const worldPoint = getWorldPosition(screenPoint);
 
     if (canvasState.selectedTool === 'pencil') {
-      // Add point to pencil stroke
       pencilPointsRef.current.push(worldPoint);
       
-      // Create temporary pencil element for preview
-      const tempPencilElement = createPencilStroke(pencilPointsRef.current);
-      setCanvasState(prev => ({
-        ...prev,
-        elements: [
-          ...prev.elements.filter(el => el.id !== 'temp-pencil'),
-          { ...tempPencilElement, id: 'temp-pencil' }
-        ]
-      }));
-    } else {
-      // Preview shape creation
-      let previewElement: CanvasElement | null = null;
-
-      switch (canvasState.selectedTool) {
-        case 'rectangle':
-          previewElement = createRectangle(drawingState.startPoint, worldPoint);
-          break;
-        case 'circle':
-          previewElement = createCircle(drawingState.startPoint, worldPoint);
-          break;
-        case 'diamond':
-          previewElement = createDiamond(drawingState.startPoint, worldPoint);
-          break;
-        case 'arrow':
-          previewElement = createArrow(drawingState.startPoint, worldPoint);
-          break;
-        case 'line':
-          previewElement = createLine([drawingState.startPoint, worldPoint]);
-          break;
-      }
-
-      if (previewElement) {
+      if (pencilPointsRef.current.length > 1) {
+        const tempPencilElement = createPencilStroke(pencilPointsRef.current);
+        tempPencilElement.id = 'temp-pencil';
+        
         setCanvasState(prev => ({
           ...prev,
           elements: [
-            ...prev.elements.filter(el => el.id !== 'temp-preview'),
-            { ...previewElement, id: 'temp-preview' }
+            ...prev.elements.filter(el => el.id !== 'temp-pencil'),
+            tempPencilElement
           ]
         }));
       }
+    } else {
+      const startPoint = drawingState.startPoint;
+      const width = worldPoint.x - startPoint.x;
+      const height = worldPoint.y - startPoint.y;
+
+      let tempElement: CanvasElement;
+
+      switch (canvasState.selectedTool) {
+        case 'rectangle':
+          tempElement = createRectangle(startPoint, width, height);
+          break;
+        case 'circle':
+          tempElement = createCircle(startPoint, width, height);
+          break;
+        case 'diamond':
+          tempElement = createDiamond(startPoint, width, height);
+          break;
+        case 'arrow':
+          tempElement = createArrow(startPoint, worldPoint);
+          break;
+        case 'line':
+          tempElement = createLine(startPoint, worldPoint);
+          break;
+        default:
+          return;
+      }
+
+      tempElement.id = 'temp-preview';
+
+      setCanvasState(prev => ({
+        ...prev,
+        elements: [
+          ...prev.elements.filter(el => el.id !== 'temp-preview'),
+          tempElement
+        ]
+      }));
     }
-  }, [drawingState, canvasState.selectedTool, getMousePosition, getWorldPosition, isPanning, lastPanPoint, canvasState]);
+  }, [drawingState, canvasState, getMousePosition, getWorldPosition]);
 
   const handleMouseUp = useCallback(() => {
-    if (isPanning) {
-      setIsPanning(false);
-      setLastPanPoint(null);
-      return;
-    }
+    setIsPanning(false);
+    setLastPanPoint(null);
 
     if (!drawingState.isDrawing || !drawingState.startPoint) return;
 
     if (canvasState.selectedTool === 'pencil') {
-      // Finalize pencil stroke
       if (pencilPointsRef.current.length > 1) {
         const pencilElement = createPencilStroke(pencilPointsRef.current);
         const newElements = [
@@ -449,16 +262,11 @@ export default function Canvas({ roomId }: CanvasProps) {
         ];
         setCanvasState(prev => ({ ...prev, elements: newElements }));
         addToHistory(newElements);
-        
-        // Send shape to WebSocket
-        wsConnection?.createShape(pencilElement);
       }
       pencilPointsRef.current = [];
     } else {
-      // Finalize shape creation
       const tempElement = canvasState.elements.find(el => el.id === 'temp-preview');
       if (tempElement) {
-        // For lines and arrows, don't require minimum size
         const isLineLike = canvasState.selectedTool === 'line' || canvasState.selectedTool === 'arrow';
         const hasMinimumSize = tempElement.width > 5 && tempElement.height > 5;
         const hasMinimumLength = isLineLike && (tempElement.width > 3 || tempElement.height > 3);
@@ -471,11 +279,7 @@ export default function Canvas({ roomId }: CanvasProps) {
           ];
           setCanvasState(prev => ({ ...prev, elements: newElements }));
           addToHistory(newElements);
-          
-          // Send shape to WebSocket
-          wsConnection?.createShape(finalElement);
         } else {
-          // Remove temp preview if too small
           setCanvasState(prev => ({
             ...prev,
             elements: prev.elements.filter(el => el.id !== 'temp-preview')
@@ -502,7 +306,6 @@ export default function Canvas({ roomId }: CanvasProps) {
       dragOffset: null,
     });
     
-    // Clean up temp elements
     setCanvasState(prev => ({
       ...prev,
       elements: prev.elements.filter(el => !el.id.startsWith('temp-'))
@@ -512,7 +315,6 @@ export default function Canvas({ roomId }: CanvasProps) {
   const handleToolChange = useCallback((tool: ToolType) => {
     setCanvasState(prev => ({ ...prev, selectedTool: tool }));
     
-    // Clear selection when changing tools
     if (tool !== 'select') {
       setCanvasState(prev => ({
         ...prev,
@@ -539,8 +341,9 @@ export default function Canvas({ roomId }: CanvasProps) {
   }, [history, historyIndex]);
 
   const handleClear = useCallback(() => {
-    setCanvasState(prev => ({ ...prev, elements: [] }));
-    addToHistory([]);
+    const newElements: CanvasElement[] = [];
+    setCanvasState(prev => ({ ...prev, elements: newElements, selectedElements: [] }));
+    addToHistory(newElements);
   }, [addToHistory]);
 
   const handleZoomIn = useCallback(() => {
@@ -558,22 +361,18 @@ export default function Canvas({ roomId }: CanvasProps) {
   }, [MIN_ZOOM]);
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
-    // Prevent default browser zoom
     e.preventDefault();
     
-    // Only zoom when Ctrl key is held (like Excalidraw)
     if (e.ctrlKey || e.metaKey) {
       const canvas = e.currentTarget;
       const rect = canvas.getBoundingClientRect();
       const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
       const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
       
-      // Calculate zoom factor
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
       const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, canvasState.zoom * zoomFactor));
       
       if (newZoom !== canvasState.zoom) {
-        // Zoom towards mouse position
         const zoomRatio = newZoom / canvasState.zoom;
         const newViewportX = mouseX - (mouseX - canvasState.viewportX) * zoomRatio;
         const newViewportY = mouseY - (mouseY - canvasState.viewportY) * zoomRatio;
@@ -596,14 +395,10 @@ export default function Canvas({ roomId }: CanvasProps) {
     if (!textInput) return;
     
     if (textInput.value.trim()) {
-      // Create text element
       const textElement = createTextElement({ x: textInput.x, y: textInput.y }, textInput.value);
       const newElements = [...canvasState.elements, textElement];
       setCanvasState(prev => ({ ...prev, elements: newElements }));
       addToHistory(newElements);
-      
-      // Send shape to WebSocket
-      wsConnection?.createShape(textElement);
     }
     
     setTextInput(null);
@@ -622,36 +417,37 @@ export default function Canvas({ roomId }: CanvasProps) {
         zoom={canvasState.zoom}
       />
       
+      {/* Demo Banner */}
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm border border-blue-500/30 text-blue-100 px-6 py-3 rounded-2xl shadow-xl">
+          <div className="flex items-center space-x-3">
+            <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium">Demo Mode - Try the tools!</span>
+            <a 
+              href="/signup" 
+              className="ml-4 px-3 py-1 bg-blue-500/30 hover:bg-blue-500/40 rounded-lg text-sm font-medium transition-colors"
+            >
+              Sign up for full features
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Back Button */}
       <div className="fixed top-4 left-24 z-50">
         <button
           onClick={handleBack}
-          title="Back to Dashboard (Esc)"
+          title="Back to Home (Esc)"
           className="flex items-center space-x-2 px-4 py-2 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 text-slate-200 hover:bg-slate-700/50 hover:border-slate-500/50 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 group"
         >
           <svg className="w-5 h-5 group-hover:transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          <span className="text-sm font-medium">Back to Dashboard</span>
+          <span className="text-sm font-medium">Back to Home</span>
           <span className="text-xs text-gray-400 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">Esc</span>
         </button>
-      </div>
-      
-      {/* Connection Status */}
-      <div className="fixed top-4 right-4 z-50">
-        <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg backdrop-blur-sm ${
-          isConnected ? 'bg-green-500/20 border border-green-500/30' : 'bg-red-500/20 border border-red-500/30'
-        }`}>
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-          <span className={`text-sm font-medium ${isConnected ? 'text-green-700' : 'text-red-700'}`}>
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
-        {connectionError && (
-          <div className="mt-2 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg backdrop-blur-sm">
-            <span className="text-xs text-red-700">{connectionError}</span>
-          </div>
-        )}
       </div>
       
       <div className="w-full h-full pl-20">
@@ -693,22 +489,12 @@ export default function Canvas({ roomId }: CanvasProps) {
                 setTextInput(null);
               }
             }}
-            className="bg-white border border-gray-300 outline-none text-black text-base font-sans px-2 py-1 rounded shadow-lg"
-            style={{
-              fontSize: '16px',
-              fontFamily: 'Arial, sans-serif',
-              minWidth: '100px',
-            }}
+            className="px-2 py-1 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
-            placeholder="Type text..."
+            placeholder="Enter text..."
           />
         </div>
       )}
-
-      {/* Room info */}
-      <div className="fixed bottom-4 left-4 bg-white rounded-lg shadow-lg px-4 py-2 text-sm text-gray-600">
-        Room: {roomId}
-      </div>
     </div>
   );
 }

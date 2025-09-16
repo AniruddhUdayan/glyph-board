@@ -2,10 +2,12 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
 import { middleware } from "./middleware";
-import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common/types";
+const { CreateUserSchema, SigninSchema, CreateRoomSchema } = require("./schemas");
 import { prisma } from "@repo/db/client";
+import cors from "cors";
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -28,9 +30,16 @@ app.post("/signup", async (req, res) => {
             }
         })
 
+        const token = jwt.sign({ userId : user.id }, JWT_SECRET);
         res.status(201).json({
             message: "User created successfully",
-            userId: user.id
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                photo: user.photo
+            }
         })
     } catch (error) {
         return res.status(500).json({ message: "User already exists"});
@@ -54,7 +63,15 @@ app.post("/signin", async (req, res) => {
     }
 
     const token = jwt.sign({ userId : user.id }, JWT_SECRET);
-    res.json({ token });
+    res.json({ 
+        token,
+        user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            photo: user.photo
+        }
+    });
 })
 
 app.post('/room', middleware, async (req, res) => {
@@ -92,48 +109,141 @@ try {
     }
 });
 
-app.get("/chats/:roomId",middleware, async (req, res) => {
+// app.get("/chats/:roomId",middleware, async (req, res) => {
+//     const roomId = req.params.roomId;
+//     if(!roomId) {
+//         return res.status(400).json({ message: "Invalid room id" });
+//     }
+//     const userId = req.userId;
+//     if(!userId) {
+//         return res.status(401).json({ message: "Unauthorized" });
+//     }
+//     const messages = await prisma.chat.findMany({
+//         where: {
+//             roomId: roomId
+//         },
+//         orderBy: {
+//             id: "desc"
+//         },
+//         take: 50
+//     })
+
+//     res.json({
+//         messages
+//     })
+// })
+
+app.get("/room/:roomId", middleware, async (req, res) => {
     const roomId = req.params.roomId;
     if(!roomId) {
-        return res.status(400).json({ message: "Invalid room id" });
+        return res.status(400).json({ message: "Invalid room ID" });
     }
+    
+    try {
+        const room = await prisma.room.findUnique({
+            where: {
+                id: roomId
+            },
+            select: {
+                id: true,
+                slug: true,
+                createdAt: true,
+                adminId: true,
+                admin: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
+        
+        if(!room) {
+            return res.status(404).json({ message: "Room not found" });
+        }
+        
+        res.json({
+            room
+        });
+    } catch (error) {
+        console.error("Error fetching room:", error);
+        return res.status(500).json({ message: "Failed to fetch room" });
+    }
+})
+
+app.get("/user/rooms", middleware, async (req, res) => {
     const userId = req.userId;
     if(!userId) {
         return res.status(401).json({ message: "Unauthorized" });
     }
-    const messages = await prisma.chat.findMany({
-        where: {
-            roomId: roomId
-        },
-        orderBy: {
-            id: "desc"
-        },
-        take: 50
-    })
 
-    res.json({
-        messages
-    })
+    try {
+        const rooms = await prisma.room.findMany({
+            where: {
+                adminId: userId
+            },
+            orderBy: {
+                createdAt: "desc"
+            },
+            select: {
+                id: true,
+                slug: true,
+                createdAt: true
+            }
+        });
+
+        res.json({
+            rooms
+        });
+    } catch (error) {
+        console.error("Error fetching user rooms:", error);
+        return res.status(500).json({ message: "Failed to fetch rooms" });
+    }
 })
 
-app.get("/room/:slug", middleware, async (req, res) => {
-    const slug = req.params.slug;
-    if(!slug) {
-        return res.status(400).json({ message: "Invalid slug" });
+app.delete("/room/:roomId", middleware, async (req, res) => {
+    const roomId = req.params.roomId;
+    const userId = req.userId;
+
+    if (!roomId) {
+        return res.status(400).json({ message: "Invalid room ID" });
     }
-    
-    const room = await prisma.room.findUnique({
-        where: {
-            slug: slug
+
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+        // First, check if the room exists and if the user is the admin
+        const room = await prisma.room.findUnique({
+            where: { id: roomId },
+            select: { id: true, adminId: true, slug: true }
+        });
+
+        if (!room) {
+            return res.status(404).json({ message: "Room not found" });
         }
-    })
-    if(!room) {
-        return res.status(404).json({ message: "Room not found" });
+
+        // Check if the user is the admin of the room
+        if (room.adminId !== userId) {
+            return res.status(403).json({ message: "Only room admin can delete the room" });
+        }
+
+        // Delete the room (this will cascade delete related shapes due to onDelete: Cascade)
+        await prisma.room.delete({
+            where: { id: roomId }
+        });
+
+        res.json({
+            message: "Room deleted successfully",
+            roomId: roomId
+        });
+
+    } catch (error) {
+        console.error("Error deleting room:", error);
+        return res.status(500).json({ message: "Failed to delete room" });
     }
-    res.json({
-        room
-    })
-})
+});
 
 app.listen(3001, () => {
     console.log("Server is running on port 3001");

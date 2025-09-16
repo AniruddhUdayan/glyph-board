@@ -1,4 +1,5 @@
 import Canvas from '../../../components/canvas/Canvas';
+import ProtectedRoute from '../../../components/ProtectedRoute';
 
 interface CanvasPageProps {
   params: {
@@ -7,5 +8,9 @@ interface CanvasPageProps {
 }
 
 export default function CanvasPage({ params }: CanvasPageProps) {
-  return <Canvas roomId={params.roomid} />;
+  return (
+    <ProtectedRoute requireAuth={true}>
+      <Canvas roomId={params.roomid} />
+    </ProtectedRoute>
+  );
 }

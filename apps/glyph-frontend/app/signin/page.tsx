@@ -1,29 +1,27 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import AuthPage from '../../components/AuthPage';
-import type { SigninUser } from '../../lib/types';
+import ProtectedRoute from '../../components/ProtectedRoute';
+import { useAuth } from '../../lib/auth-context';
+import type { SigninUser } from '../../lib/schemas';
 
 export default function SignIn() {
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const { login } = useAuth();
 
   const handleSignin = async (data: SigninUser) => {
     setLoading(true);
     
-    try {
-      console.log('Signing in with:', data);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      router.push('/canvas/room-' + Date.now());
-    } catch (error) {
-      console.error('Signin error:', error);
-    } finally {
-      setLoading(false);
-    }
+    await login(data.email, data.password);
+    
+    setLoading(false);
+    // ProtectedRoute will handle redirect on success
   };
 
-  return <AuthPage mode="signin" onSubmit={handleSignin} loading={loading} />;
+  return (
+    <ProtectedRoute requireAuth={false}>
+      <AuthPage mode="signin" onSubmit={handleSignin} loading={loading} />
+    </ProtectedRoute>
+  );
 }

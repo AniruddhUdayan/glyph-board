@@ -19,8 +19,5 @@ const CreateRoomSchema = z.object({
 module.exports = {
     CreateUserSchema,
     SigninSchema,
-    CreateRoomSchema,
-    CreateUser: CreateUserSchema,
-    SigninUser: SigninSchema,
-    CreateRoom: CreateRoomSchema
+    CreateRoomSchema
 };

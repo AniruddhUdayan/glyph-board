@@ -16,7 +16,7 @@ model User {
   name       String?
   photo      String?
   room       Room[]
-  chats      Chat[]
+  shapes     Shape[]
 }
 
 model Room {
@@ -25,14 +25,37 @@ model Room {
   createdAt  DateTime @default(now())
   adminId    String
   admin      User     @relation(fields: [adminId], references: [id])
-  chats      Chat[]
+  shapes     Shape[]
 }
 
-model Chat {
-  id         Int      @id @default(autoincrement())
-  roomId     String
-  message    String
-  userId     String
-  room       Room     @relation(fields: [roomId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
+model Shape {
+  id           String   @id @default(uuid())
+  roomId       String
+  userId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Shape properties
+  shapeId      String   // Frontend element ID
+  type         String   // rectangle, circle, diamond, arrow, line, pencil, text
+  x            Float
+  y            Float
+  width        Float
+  height       Float
+  strokeColor  String   @default("#000000")
+  fillColor    String   @default("transparent")
+  strokeWidth  Float    @default(2)
+  opacity      Float    @default(1)
+  angle        Float    @default(0)
+  
+  // Type-specific data stored as JSON
+  data         Json?    // For points, text content, etc.
+  
+  // Relations
+  room         Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id])
+  
+  @@unique([roomId, shapeId])
+  @@index([roomId])
+  @@index([userId])
 }

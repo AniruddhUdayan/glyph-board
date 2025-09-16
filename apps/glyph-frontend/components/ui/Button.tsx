@@ -1,10 +1,11 @@
 "use client";
 
 import { ReactNode, forwardRef } from "react";
+import { ButtonLoader } from "./Loader";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'social';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'social' | 'creative' | 'artistic' | 'elegant';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: ReactNode;
@@ -24,10 +25,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseClasses = "inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed";
     
     const variants = {
-      primary: "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg hover:scale-105 focus:ring-blue-500",
-      secondary: "bg-gray-700 text-white hover:bg-gray-600 focus:ring-gray-500",
-      ghost: "text-gray-300 hover:text-white hover:bg-gray-800 focus:ring-gray-500",
-      social: "bg-gray-800/50 border border-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500"
+      primary: "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:scale-105 focus:ring-purple-500/50",
+      secondary: "bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 text-gray-300 hover:bg-slate-700/50 hover:border-slate-500/50 hover:text-white hover:scale-105 focus:ring-slate-500/50",
+      ghost: "text-gray-300 hover:text-white hover:bg-slate-800/50 backdrop-blur-sm hover:scale-105 focus:ring-slate-500/50",
+      social: "bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 text-gray-300 hover:bg-slate-700/40 hover:border-slate-500/40 hover:text-white focus:ring-slate-500/50",
+      creative: "bg-gradient-to-r from-pink-500/20 to-purple-500/20 backdrop-blur-sm border border-pink-500/30 text-pink-200 hover:from-pink-500/30 hover:to-purple-500/30 hover:border-pink-400/50 hover:text-pink-100 hover:scale-105 focus:ring-pink-500/50",
+      artistic: "bg-gradient-to-r from-blue-500/20 to-teal-500/20 backdrop-blur-sm border border-blue-500/30 text-blue-200 hover:from-blue-500/30 hover:to-teal-500/30 hover:border-blue-400/50 hover:text-blue-100 hover:scale-105 focus:ring-blue-500/50",
+      elegant: "bg-gradient-to-r from-slate-700/50 to-slate-600/50 backdrop-blur-sm border border-slate-500/30 text-slate-200 hover:from-slate-600/60 hover:to-slate-500/60 hover:border-slate-400/50 hover:text-white hover:scale-105 focus:ring-slate-500/50"
     };
     
     const sizes = {
@@ -43,12 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         {...props}
       >
-        {loading && (
-          <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-        )}
+        {loading && <ButtonLoader />}
         {icon && !loading && <span className="mr-2">{icon}</span>}
         {children}
       </button>

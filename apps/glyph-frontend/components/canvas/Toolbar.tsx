@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { ToolType } from '../../lib/canvas-types';
 
 interface ToolbarProps {
@@ -10,7 +11,7 @@ interface ToolbarProps {
   onClear: () => void;
 }
 
-const tools: { type: ToolType; icon: JSX.Element; label: string }[] = [
+const tools: { type: ToolType; icon: React.ReactElement; label: string }[] = [
   { 
     type: 'select', 
     icon: (
