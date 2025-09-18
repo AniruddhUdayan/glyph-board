@@ -435,6 +435,18 @@ export default function DemoCanvas() {
         </div>
       </div>
 
+      {/* Tool Status Display */}
+      <div className="fixed top-4 right-4 z-50">
+        <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 text-slate-200 px-4 py-2 rounded-xl shadow-lg">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium">
+              Current Tool: <span className="text-blue-300 capitalize">{canvasState.selectedTool}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Back Button */}
       <div className="fixed top-4 left-24 z-50">
         <button
