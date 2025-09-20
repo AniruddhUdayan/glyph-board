@@ -18,7 +18,7 @@ jobs:
             - name: "SSH into machine, pull and build all the code files and start pm2"
               run: |
                 mkdir -p ~/.ssh
-                echo "${{ secrets.SSHKEY }}" &> ~/.ssh/ssh_key_prod
+                echo "${{ secrets.SSH_KEY }}" &> ~/.ssh/ssh_key_prod
                 sudo chmod 700 ~/.ssh
                 sudo chmod 600 ~/.ssh/ssh_key_prod
                 ssh -o StrictHostKeyChecking=no -i ~/.ssh/ssh_key_prod root@159.89.166.246 -t "
