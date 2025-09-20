@@ -217,19 +217,19 @@ export default function DemoCanvas() {
 
       switch (canvasState.selectedTool) {
         case 'rectangle':
-          tempElement = createRectangle(startPoint, width, height);
+          tempElement = createRectangle(startPoint, worldPoint);
           break;
         case 'circle':
-          tempElement = createCircle(startPoint, width, height);
+          tempElement = createCircle(startPoint, worldPoint);
           break;
         case 'diamond':
-          tempElement = createDiamond(startPoint, width, height);
+          tempElement = createDiamond(startPoint, worldPoint);
           break;
         case 'arrow':
           tempElement = createArrow(startPoint, worldPoint);
           break;
         case 'line':
-          tempElement = createLine(startPoint, worldPoint);
+          tempElement = createLine([startPoint, worldPoint]);
           break;
         default:
           return;

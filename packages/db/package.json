@@ -5,7 +5,7 @@
   "main": "index.js",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/index.ts"
+    "./client": "./src/index.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

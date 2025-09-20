@@ -1,0 +1,32 @@
+name: Deploy to prod environment
+
+on:
+    push:
+        branches: 
+            - "main" 
+
+
+jobs:
+    re-deploy-to-prod:
+        name: Redploy changes to prod environment
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: "Checkout code"
+              uses: actions/checkout@v4
+
+            - name: "SSH into machine, pull and build all the code files and start pm2"
+              run: |
+                mkdir -p ~/.ssh
+                echo "${{ secrets.SSHKEY }}" &> ~/.ssh/ssh_key_prod
+                sudo chmod 700 ~/.ssh
+                sudo chmod 600 ~/.ssh/ssh_key_prod
+                ssh -o StrictHostKeyChecking=no -i ~/.ssh/ssh_key_prod root@159.89.166.246 -t "
+                cd glyph-board && git pull
+                sudo npm install pnpm -g
+                pnpm install
+                cd packages/db
+                pnpm install
+                cd ../..
+                pnpm install
+                pm2 restart all"
