@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://api.glyph-board.xyz';
+const API_BASE_URL = 'http://api.glyph-board.xyz';
 
 interface Room {
   id: string;

@@ -53,7 +53,7 @@ export class CanvasWebSocket {
         return;
       }
 
-      const wsUrl = `ws://api.glyph-board.xyz?token=${encodeURIComponent(this.token || '')}`;
+      const wsUrl = `ws://ws.glyph-board.xyz?token=${encodeURIComponent(this.token || '')}`;
       console.log('Connecting to WebSocket:', wsUrl);
       console.log('Token length:', this.token?.length || 0);
       
@@ -93,7 +93,7 @@ export class CanvasWebSocket {
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket connection failed. Server might not be running on ws://api.glyph-board.xyz');
+        console.error('WebSocket connection failed. Server might not be running on ws://ws.glyph-board.xyz');
         console.error('Error details:', {
           readyState: this.ws?.readyState,
           url: this.ws?.url,
