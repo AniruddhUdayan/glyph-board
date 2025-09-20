@@ -21,11 +21,14 @@ jobs:
           chmod 700 ~/.ssh
           chmod 600 ~/.ssh/ssh_key_prod
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/ssh_key_prod root@159.89.166.246 -t "
+            export NVM_DIR=\$HOME/.nvm
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
+            [ -s \"\$NVM_DIR/bash_completion\" ] && \. \"\$NVM_DIR/bash_completion\"
             cd glyph-board && git pull
-            /root/.nvm/versions/node/v22.19.0/bin/pnpm install
+            pnpm install
             cd packages/db
-            /root/.nvm/versions/node/v22.19.0/bin/pnpm install
+            pnpm install
             cd ../..
-            /root/.nvm/versions/node/v22.19.0/bin/pnpm install
-            /root/.nvm/versions/node/v22.19.0/bin/pm2 restart all || /root/.nvm/versions/node/v22.19.0/bin/pm2 start ecosystem.config.js
+            pnpm install
+            pm2 restart all || pm2 start ecosystem.config.js
           "
