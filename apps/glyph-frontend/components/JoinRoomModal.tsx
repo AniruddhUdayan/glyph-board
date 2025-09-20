@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://api.glyph-board.xyz';
+
 interface Room {
   id: string;
   slug: string;
@@ -44,7 +46,7 @@ export default function JoinRoomModal({ isOpen, onClose, onJoin, loading = false
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:3001/room/${roomId.trim()}`, {
+      const response = await fetch(`${API_BASE_URL}/room/${roomId.trim()}`, {
         headers: {
           'Authorization': localStorage.getItem('auth_token') || '',
         },

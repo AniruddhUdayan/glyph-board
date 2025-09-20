@@ -3,7 +3,7 @@
 
 export function testWebSocketConnection(token?: string) {
   const testToken = token || localStorage.getItem('auth_token') || 'test-token';
-  const wsUrl = `ws://localhost:8081?token=${encodeURIComponent(testToken)}`;
+  const wsUrl = `ws://ws.glyph-board.xyz?token=${encodeURIComponent(testToken)}`;
   
   console.log('Testing WebSocket connection...');
   console.log('URL:', wsUrl);
