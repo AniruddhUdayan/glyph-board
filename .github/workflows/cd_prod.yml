@@ -1,32 +1,31 @@
 name: Deploy to prod environment
 
 on:
-    push:
-        branches: 
-            - "main" 
-
+  push:
+    branches: 
+      - "main"
 
 jobs:
-    re-deploy-to-prod:
-        name: Redploy changes to prod environment
-        runs-on: ubuntu-latest
+  re-deploy-to-prod:
+    name: Redploy changes to prod environment
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: "Checkout code"
-              uses: actions/checkout@v4
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v4
 
-            - name: "SSH into machine, pull and build all the code files and start pm2"
-              run: |
-                mkdir -p ~/.ssh
-                echo "${{ secrets.SSH_KEY }}" &> ~/.ssh/ssh_key_prod
-                sudo chmod 700 ~/.ssh
-                sudo chmod 600 ~/.ssh/ssh_key_prod
-                ssh -o StrictHostKeyChecking=no -i ~/.ssh/ssh_key_prod root@159.89.166.246 -t "
-                cd glyph-board && git pull
-                sudo npm install pnpm -g
-                pnpm install
-                cd packages/db
-                pnpm install
-                cd ../..
-                pnpm install
-                pm2 restart all"
+      - name: "SSH into machine, pull and build all the code files and start pm2"
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/ssh_key_prod
+          chmod 700 ~/.ssh
+          chmod 600 ~/.ssh/ssh_key_prod
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/ssh_key_prod root@159.89.166.246 -t "
+            cd glyph-board && git pull
+            /root/.nvm/versions/node/v22.19.0/bin/pnpm install
+            cd packages/db
+            /root/.nvm/versions/node/v22.19.0/bin/pnpm install
+            cd ../..
+            /root/.nvm/versions/node/v22.19.0/bin/pnpm install
+            /root/.nvm/versions/node/v22.19.0/bin/pm2 restart all || /root/.nvm/versions/node/v22.19.0/bin/pm2 start ecosystem.config.js
+          "
