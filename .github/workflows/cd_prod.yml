@@ -25,10 +25,15 @@ jobs:
             [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
             [ -s \"\$NVM_DIR/bash_completion\" ] && \. \"\$NVM_DIR/bash_completion\"
             cd glyph-board && git pull
+            # Clear Turbo cache to ensure fresh builds
+            rm -rf .turbo
+            rm -rf apps/glyph-frontend/.next
             pnpm install
             cd packages/db
             pnpm install
             cd ../..
             pnpm install
+            # Force rebuild with cache bypass
+            pnpm turbo build --force
             pm2 restart all || pm2 start ecosystem.config.js
           "
