@@ -8,6 +8,7 @@ export type WebSocketMessageType =
   | 'shape_create'
   | 'shape_update'
   | 'shape_delete'
+  | 'clear_all_shapes'
   | 'load_shapes'
   | 'shapes_loaded'
   | 'error';
@@ -37,6 +38,7 @@ export class CanvasWebSocket {
   private onShapeCreateListener?: (shape: CanvasElement, senderId: string) => void;
   private onShapeUpdateListener?: (shape: CanvasElement, senderId: string) => void;
   private onShapeDeleteListener?: (shapeId: string, senderId: string) => void;
+  private onClearAllShapesListener?: (senderId: string) => void;
   private onShapesLoadedListener?: (shapes: CanvasElement[]) => void;
   private onErrorListener?: (error: string) => void;
   private onConnectionStatusListener?: (connected: boolean) => void;
@@ -48,19 +50,15 @@ export class CanvasWebSocket {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        console.log('WebSocket already connected');
         resolve();
         return;
       }
 
       const wsUrl = `ws://ws.glyph-board.xyz?token=${encodeURIComponent(this.token || '')}`;
-      console.log('Connecting to WebSocket:', wsUrl);
-      console.log('Token length:', this.token?.length || 0);
       
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
-        console.log('WebSocket connected');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.onConnectionStatusListener?.(true);
@@ -86,7 +84,6 @@ export class CanvasWebSocket {
       };
 
       this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
         this.isConnected = false;
         this.onConnectionStatusListener?.(false);
         this.attemptReconnect();
@@ -108,7 +105,6 @@ export class CanvasWebSocket {
   private attemptReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
       
       setTimeout(() => {
         this.connect().catch((error) => {
@@ -122,7 +118,6 @@ export class CanvasWebSocket {
   }
 
   private handleMessage(message: WebSocketMessage) {
-    console.log('Received WebSocket message:', message);
 
     switch (message.type) {
       case 'shape_create':
@@ -143,6 +138,12 @@ export class CanvasWebSocket {
         }
         break;
 
+      case 'clear_all_shapes':
+        if (message.senderId) {
+          this.onClearAllShapesListener?.(message.senderId);
+        }
+        break;
+
       case 'shapes_loaded':
         if (message.shapes) {
           this.onShapesLoadedListener?.(message.shapes);
@@ -156,7 +157,6 @@ export class CanvasWebSocket {
         break;
 
       default:
-        console.log('Unhandled message type:', message.type);
     }
   }
 
@@ -257,6 +257,17 @@ export class CanvasWebSocket {
     }
   }
 
+  clearAllShapes() {
+    if (this.roomId) {
+      this.send({
+        type: 'clear_all_shapes',
+        roomId: this.roomId
+      });
+    } else {
+      console.error('No room ID available for clear all shapes');
+    }
+  }
+
   // Event listener setters
   onShapeCreate(listener: (shape: CanvasElement, senderId: string) => void) {
     this.onShapeCreateListener = listener;
@@ -268,6 +279,10 @@ export class CanvasWebSocket {
 
   onShapeDelete(listener: (shapeId: string, senderId: string) => void) {
     this.onShapeDeleteListener = listener;
+  }
+
+  onClearAllShapes(listener: (senderId: string) => void) {
+    this.onClearAllShapesListener = listener;
   }
 
   onShapesLoaded(listener: (shapes: CanvasElement[]) => void) {
@@ -283,7 +298,6 @@ export class CanvasWebSocket {
   }
 
   disconnect() {
-    console.log('Disconnecting WebSocket...');
     
     // Leave room if connected
     this.leaveRoom();
@@ -303,7 +317,6 @@ export class CanvasWebSocket {
     // Notify listeners
     this.onConnectionStatusListener?.(false);
     
-    console.log('WebSocket disconnected successfully');
   }
 
   getConnectionStatus(): boolean {

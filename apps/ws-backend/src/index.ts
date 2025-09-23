@@ -323,6 +323,52 @@ wss.on("connection", (ws , request) => {
                     }));
                 }
             }
+
+            // Handle clearing all shapes in a room
+            if(parsedData.type === "clear_all_shapes") {
+                const { roomId } = parsedData;
+                const sender = users.find((x) => x.ws === ws);
+
+                if(!sender) {
+                    return;
+                }
+
+                // Check if sender is in the room
+                if(!sender.rooms.includes(roomId)) {
+                    ws.send(JSON.stringify({
+                        type: "error",
+                        message: "You are not in this room"
+                    }));
+                    return;
+                }
+
+                try {
+                    // Delete all shapes from the room in the database
+                    const deleteResult = await prisma.shape.deleteMany({
+                        where: { roomId }
+                    });
+
+                    console.log(`Cleared ${deleteResult.count} shapes from room ${roomId} by user ${sender.userId}`);
+
+                    // Broadcast clear all to all users in the room
+                    users.forEach((x) => {
+                        if(x.rooms.includes(roomId)) {
+                            x.ws.send(JSON.stringify({
+                                type: "clear_all_shapes",
+                                roomId,
+                                senderId: sender.userId,
+                                timestamp: new Date().toISOString()
+                            }));
+                        }
+                    });
+                } catch (error) {
+                    console.error("Error clearing all shapes:", error);
+                    ws.send(JSON.stringify({
+                        type: "error",
+                        message: "Failed to clear all shapes"
+                    }));
+                }
+            }
        } catch (error) {
            console.error("Invalid JSON received:", error);
            ws.send(JSON.stringify({

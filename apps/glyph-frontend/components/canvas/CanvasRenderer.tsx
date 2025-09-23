@@ -128,9 +128,6 @@ export default function CanvasRenderer({
       case 'pencil':
         drawPencil(ctx, element as PencilElement);
         break;
-      case 'text':
-        drawText(ctx, element as any);
-        break;
     }
 
     // Draw selection handles if selected
@@ -253,20 +250,6 @@ export default function CanvasRenderer({
     ctx.stroke();
   };
 
-  const drawText = (ctx: CanvasRenderingContext2D, element: any) => {
-    if (!element.text) return;
-    
-    ctx.fillStyle = element.strokeColor;
-    ctx.font = `${element.fontSize || 16}px ${element.fontFamily || 'Arial, sans-serif'}`;
-    ctx.textBaseline = 'top';
-    
-    const lines = element.text.split('\n');
-    const lineHeight = (element.fontSize || 16) * 1.2;
-    
-    lines.forEach((line: string, index: number) => {
-      ctx.fillText(line, element.x, element.y + (index * lineHeight));
-    });
-  };
 
   const drawSelectionHandles = (ctx: CanvasRenderingContext2D, element: CanvasElement) => {
     const bounds = getElementBounds(element);
@@ -311,8 +294,6 @@ export default function CanvasRenderer({
         return 'cursor-crosshair';
       case 'eraser':
         return 'cursor-pointer';
-      case 'text':
-        return 'cursor-text';
       default:
         return 'cursor-crosshair';
     }

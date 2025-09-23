@@ -10,7 +10,6 @@ import {
   createArrow, 
   createLine, 
   createPencilStroke,
-  createTextElement,
   isPointInElement,
   generateId
 } from '../../lib/canvas-utils';
@@ -47,7 +46,7 @@ export default function Canvas({ roomId }: CanvasProps) {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState<Point | null>(null);
-  const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
+  
   const [wsConnection, setWsConnection] = useState<CanvasWebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -87,8 +86,6 @@ export default function Canvas({ roomId }: CanvasProps) {
           return;
         }
 
-        console.log('Initializing WebSocket connection for room:', roomId);
-        console.log('Token found:', token ? 'Yes' : 'No');
         
         const ws = new CanvasWebSocket(token);
         
@@ -136,6 +133,16 @@ export default function Canvas({ roomId }: CanvasProps) {
           }
         });
 
+        ws.onClearAllShapes((senderId) => {
+          if (senderId !== currentUserIdRef.current) {
+            setCanvasState(prev => ({
+              ...prev,
+              elements: [],
+              selectedElements: []
+            }));
+          }
+        });
+
         ws.onShapesLoaded((shapes) => {
           setCanvasState(prev => ({
             ...prev,
@@ -144,20 +151,13 @@ export default function Canvas({ roomId }: CanvasProps) {
         });
 
         // Connect and join room
-        console.log('Attempting to connect WebSocket...');
         await ws.connect();
-        console.log('WebSocket connected successfully');
-        
-        console.log('Attempting to join room:', roomId);
         await ws.joinRoom(roomId);
-        console.log('Successfully joined room:', roomId);
         
         // Load existing shapes
-        console.log('Loading existing shapes...');
         ws.loadShapes();
         
         setWsConnection(ws);
-        console.log('WebSocket initialization complete');
 
         // Get current user ID from token
         try {
@@ -239,7 +239,7 @@ export default function Canvas({ roomId }: CanvasProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Handle Escape key to go back
-      if (e.key === 'Escape' && !textInput) {
+      if (e.key === 'Escape') {
         e.preventDefault();
         handleBack();
       }
@@ -250,7 +250,7 @@ export default function Canvas({ roomId }: CanvasProps) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleBack, textInput]);
+  }, [handleBack]);
 
   // Prevent browser zoom on the entire page when in canvas
   useEffect(() => {
@@ -277,6 +277,7 @@ export default function Canvas({ roomId }: CanvasProps) {
     };
   }, []);
 
+
   const getWorldPosition = useCallback((screenPoint: Point): Point => {
     // Convert screen coordinates to world coordinates accounting for zoom and viewport
     return {
@@ -296,22 +297,7 @@ export default function Canvas({ roomId }: CanvasProps) {
     const screenPoint = getMousePosition(e);
     const worldPoint = getWorldPosition(screenPoint);
     
-    // Close text input if clicking elsewhere (but not if clicking on the input itself)
-    if (textInput) {
-      if (textInput.value.trim()) {
-        // Create text element from input
-        const textElement = createTextElement({ x: textInput.x, y: textInput.y }, textInput.value);
-        const newElements = [...canvasState.elements, textElement];
-        setCanvasState(prev => ({ ...prev, elements: newElements }));
-        addToHistory(newElements);
-      }
-      setTextInput(null);
-      
-      // Don't continue with other tool actions if we were finishing text input
-      if (canvasState.selectedTool === 'text') {
-        return;
-      }
-    }
+    
     
     if (canvasState.selectedTool === 'select') {
       // Handle canvas panning - use screen coordinates for panning
@@ -341,15 +327,6 @@ export default function Canvas({ roomId }: CanvasProps) {
         // Send delete to WebSocket
         wsConnection?.deleteShape(elementToErase.id);
       }
-    } else if (canvasState.selectedTool === 'text') {
-      // Handle text creation - show input box at click position
-      const canvas = e.currentTarget;
-      const rect = canvas.getBoundingClientRect();
-      setTextInput({
-        x: worldPoint.x,
-        y: worldPoint.y,
-        value: ''
-      });
     } else {
       // Start drawing shapes - use world coordinates for drawing
       setDrawingState({
@@ -359,7 +336,7 @@ export default function Canvas({ roomId }: CanvasProps) {
         dragOffset: null,
       });
     }
-  }, [canvasState, getMousePosition, getWorldPosition, addToHistory]);
+  }, [canvasState, getMousePosition, getWorldPosition, addToHistory, wsConnection]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const screenPoint = getMousePosition(e);
@@ -541,7 +518,14 @@ export default function Canvas({ roomId }: CanvasProps) {
   const handleClear = useCallback(() => {
     setCanvasState(prev => ({ ...prev, elements: [] }));
     addToHistory([]);
-  }, [addToHistory]);
+    
+    // Send clear all to WebSocket to persist in database
+    if (wsConnection) {
+      wsConnection.clearAllShapes();
+    } else {
+      console.error('No WebSocket connection available for clear all');
+    }
+  }, [addToHistory, wsConnection]);
 
   const handleZoomIn = useCallback(() => {
     setCanvasState(prev => ({
@@ -588,26 +572,6 @@ export default function Canvas({ roomId }: CanvasProps) {
     }
   }, [canvasState.zoom, canvasState.viewportX, canvasState.viewportY, MIN_ZOOM, MAX_ZOOM]);
 
-  const handleTextInputChange = useCallback((value: string) => {
-    setTextInput(prev => prev ? { ...prev, value } : null);
-  }, []);
-
-  const handleTextInputSubmit = useCallback(() => {
-    if (!textInput) return;
-    
-    if (textInput.value.trim()) {
-      // Create text element
-      const textElement = createTextElement({ x: textInput.x, y: textInput.y }, textInput.value);
-      const newElements = [...canvasState.elements, textElement];
-      setCanvasState(prev => ({ ...prev, elements: newElements }));
-      addToHistory(newElements);
-      
-      // Send shape to WebSocket
-      wsConnection?.createShape(textElement);
-    }
-    
-    setTextInput(null);
-  }, [textInput, canvasState.elements, addToHistory]);
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden">
@@ -672,42 +636,10 @@ export default function Canvas({ roomId }: CanvasProps) {
         />
       </div>
 
-      {/* Text input overlay */}
-      {textInput && (
-        <div
-          className="fixed z-50"
-          style={{
-            left: textInput.x * canvasState.zoom + canvasState.viewportX,
-            top: textInput.y * canvasState.zoom + canvasState.viewportY,
-          }}
-        >
-          <input
-            type="text"
-            value={textInput.value}
-            onChange={(e) => handleTextInputChange(e.target.value)}
-            onBlur={handleTextInputSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleTextInputSubmit();
-              } else if (e.key === 'Escape') {
-                setTextInput(null);
-              }
-            }}
-            className="bg-white border border-gray-300 outline-none text-black text-base font-sans px-2 py-1 rounded shadow-lg"
-            style={{
-              fontSize: '16px',
-              fontFamily: 'Arial, sans-serif',
-              minWidth: '100px',
-            }}
-            autoFocus
-            placeholder="Type text..."
-          />
-        </div>
-      )}
 
-      {/* Room info */}
+      {/* Debug info */}
       <div className="fixed bottom-4 left-4 bg-white rounded-lg shadow-lg px-4 py-2 text-sm text-gray-600">
-        Room: {roomId}
+        Room: {roomId} | Tool: {canvasState.selectedTool}
       </div>
     </div>
   );

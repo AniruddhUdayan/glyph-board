@@ -22,7 +22,7 @@ export default function AuthPage({ mode, onSubmit, loading = false }: AuthPagePr
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { error: authError, clearError } = useAuth();
-console.log(authError,"authError")
+  
   const schema = mode === 'signup' ? CreateUserSchema : SigninSchema;
 
 

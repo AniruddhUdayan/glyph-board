@@ -18,7 +18,6 @@ export type ToolType =
   | 'arrow'
   | 'line'
   | 'pencil'
-  | 'text'
   | 'eraser';
 
 export interface BaseElement {
@@ -65,21 +64,13 @@ export interface PencilElement extends BaseElement {
   pressure?: number[];
 }
 
-export interface TextElement extends BaseElement {
-  type: 'text';
-  text: string;
-  fontSize: number;
-  fontFamily: string;
-}
-
 export type CanvasElement = 
   | RectangleElement 
   | CircleElement 
   | DiamondElement 
   | LineElement 
   | ArrowElement 
-  | PencilElement 
-  | TextElement;
+  | PencilElement;
 
 export interface CanvasState {
   elements: CanvasElement[];

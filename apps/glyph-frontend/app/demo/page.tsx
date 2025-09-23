@@ -3,14 +3,13 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CanvasElement, CanvasState, DrawingState, Point, ToolType } from '../../lib/canvas-types';
-import { 
-  createRectangle, 
-  createCircle, 
-  createDiamond, 
-  createArrow, 
-  createLine, 
+import {
+  createRectangle,
+  createCircle,
+  createDiamond,
+  createArrow,
+  createLine,
   createPencilStroke,
-  createTextElement,
   isPointInElement,
   generateId
 } from '../../lib/canvas-utils';
@@ -41,7 +40,6 @@ export default function DemoCanvas() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState<Point | null>(null);
-  const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
   const pencilPointsRef = useRef<Point[]>([]);
 
   const MIN_ZOOM = 0.1;
@@ -70,7 +68,7 @@ export default function DemoCanvas() {
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !textInput) {
+      if (e.key === 'Escape') {
         e.preventDefault();
         handleBack();
       }
@@ -81,7 +79,7 @@ export default function DemoCanvas() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleBack, textInput]);
+  }, [handleBack]);
 
   const getMousePosition = useCallback((e: React.MouseEvent<HTMLCanvasElement>): Point => {
     const canvas = e.currentTarget;
@@ -156,12 +154,6 @@ export default function DemoCanvas() {
         setCanvasState(prev => ({ ...prev, elements: newElements }));
         addToHistory(newElements);
       }
-    } else if (canvasState.selectedTool === 'text') {
-      setTextInput({
-        x: worldPoint.x,
-        y: worldPoint.y,
-        value: ''
-      });
     } else {
       setDrawingState({
         isDrawing: true,
@@ -387,22 +379,7 @@ export default function DemoCanvas() {
     }
   }, [canvasState.zoom, canvasState.viewportX, canvasState.viewportY, MIN_ZOOM, MAX_ZOOM]);
 
-  const handleTextInputChange = useCallback((value: string) => {
-    setTextInput(prev => prev ? { ...prev, value } : null);
-  }, []);
 
-  const handleTextInputSubmit = useCallback(() => {
-    if (!textInput) return;
-    
-    if (textInput.value.trim()) {
-      const textElement = createTextElement({ x: textInput.x, y: textInput.y }, textInput.value);
-      const newElements = [...canvasState.elements, textElement];
-      setCanvasState(prev => ({ ...prev, elements: newElements }));
-      addToHistory(newElements);
-    }
-    
-    setTextInput(null);
-  }, [textInput, canvasState.elements, addToHistory]);
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden">
@@ -480,33 +457,6 @@ export default function DemoCanvas() {
         />
       </div>
 
-      {/* Text input overlay */}
-      {textInput && (
-        <div
-          className="fixed z-50"
-          style={{
-            left: textInput.x * canvasState.zoom + canvasState.viewportX,
-            top: textInput.y * canvasState.zoom + canvasState.viewportY,
-          }}
-        >
-          <input
-            type="text"
-            value={textInput.value}
-            onChange={(e) => handleTextInputChange(e.target.value)}
-            onBlur={handleTextInputSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleTextInputSubmit();
-              } else if (e.key === 'Escape') {
-                setTextInput(null);
-              }
-            }}
-            className="px-2 py-1 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-            placeholder="Enter text..."
-          />
-        </div>
-      )}
     </div>
   );
 }

@@ -13,7 +13,6 @@ export function getElementBounds(element: CanvasElement): Bounds {
     case 'rectangle':
     case 'diamond':
     case 'circle':
-    case 'text':
       return {
         x: element.x,
         y: element.y,
@@ -68,7 +67,6 @@ export function isPointInElement(point: Point, element: CanvasElement): boolean 
   switch (element.type) {
     case 'rectangle':
     case 'diamond':
-    case 'text':
       return isPointInBounds(point, bounds);
     
     case 'circle':
@@ -272,22 +270,3 @@ export function createPencilStroke(points: Point[]): PencilElement {
   };
 }
 
-export function createTextElement(point: Point, text: string = ''): any {
-  return {
-    id: generateId(),
-    type: 'text',
-    x: point.x,
-    y: point.y,
-    width: Math.max(text.length * 10, 50), // Minimum width for visibility
-    height: 20,
-    text,
-    fontSize: 16,
-    fontFamily: 'Arial, sans-serif',
-    strokeColor: '#000000',
-    fillColor: 'transparent',
-    strokeWidth: 1,
-    opacity: 1,
-    isSelected: false,
-    angle: 0,
-  };
-}
