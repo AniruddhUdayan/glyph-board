@@ -130,6 +130,12 @@ export default function DemoCanvas() {
           }))
         }));
       } else {
+        // If no element is clicked, enable panning on left mouse button
+        if (e.button === 0) {
+          setIsPanning(true);
+          setLastPanPoint(screenPoint);
+        }
+        
         setCanvasState(prev => ({
           ...prev,
           selectedElements: [],
