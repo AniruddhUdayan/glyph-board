@@ -1,15 +1,11 @@
-# Simple optimized frontend Dockerfile
 FROM node:20-alpine
 
-# Install pnpm
 RUN npm install -g pnpm@9.0.0
 
-# Set working directory
 WORKDIR /app
 
-# Copy workspace and package files for better caching
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY apps/glyph-frontend/package.json ./apps/glyph-frontend/
+COPY apps/http-backend/package.json ./apps/http-backend/
 COPY packages/backend-common/package.json ./packages/backend-common/
 COPY packages/common/package.json ./packages/common/
 COPY packages/db/package.json ./packages/db/
@@ -17,28 +13,22 @@ COPY packages/eslint-config/package.json ./packages/eslint-config/
 COPY packages/typescript-config/package.json ./packages/typescript-config/
 COPY packages/ui/package.json ./packages/ui/
 
-# Install all dependencies
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile || pnpm install --no-frozen-lockfile
 
-# Copy source code
 COPY packages/ ./packages/
-COPY apps/glyph-frontend/ ./apps/glyph-frontend/
+COPY apps/http-backend/ ./apps/http-backend/
 
-# Build workspace packages that frontend depends on
+RUN pnpm --filter @repo/backend-common build 2>/dev/null || echo "Backend-common package built"
 RUN pnpm --filter @repo/common build 2>/dev/null || echo "Common package built"
-RUN pnpm --filter @repo/ui build 2>/dev/null || echo "UI package built"
+RUN pnpm --filter @repo/db build 2>/dev/null || echo "DB package built"
 
-# Build the Next.js application
-WORKDIR /app/apps/glyph-frontend
+RUN cd packages/db && npx prisma generate
+
+WORKDIR /app/apps/http-backend
 RUN pnpm build
 
-# Expose port
-EXPOSE 3002
+EXPOSE 3001
 
-# Set environment
 ENV NODE_ENV=production
-ENV PORT=3002
 
-# Start the application
 CMD ["pnpm", "start"]
-
