@@ -60,4 +60,5 @@ jspm_packages/
 Dockerfile*
 docker-compose*
 .dockerignore
+docker-compose.env
 

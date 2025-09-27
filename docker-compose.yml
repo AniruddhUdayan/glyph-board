@@ -1,0 +1,122 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: glyph-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: glyph_board
+      POSTGRES_USER: glyph_user
+      POSTGRES_PASSWORD: glyph_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glyph_user -d glyph_board"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # HTTP Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: glyph-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://glyph_user:glyph_password@postgres:5432/glyph_board
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./packages/db/prisma:/app/packages/db/prisma:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # WebSocket Backend
+  websockets:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.websockets
+    container_name: glyph-websockets
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://glyph_user:glyph_password@postgres:5432/glyph_board
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./packages/db/prisma:/app/packages/db/prisma:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Application
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: glyph-frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8081
+    ports:
+      - "3002:3002"
+    depends_on:
+      - backend
+      - websockets
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3002/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Database Migration Service (runs once)
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: glyph-migrate
+    environment:
+      - DATABASE_URL=postgresql://glyph_user:glyph_password@postgres:5432/glyph_board
+    command: >
+      sh -c "
+        cd /app/packages/db &&
+        npx prisma migrate deploy &&
+        npx prisma generate
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./packages/db/prisma:/app/packages/db/prisma:ro
+    restart: "no"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  default:
+    name: glyph-network
+
