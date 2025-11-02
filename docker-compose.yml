@@ -63,7 +63,7 @@ services:
     volumes:
       - ./packages/db/prisma:/app/packages/db/prisma:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/ || exit 1"]
+      test: ["CMD-SHELL", "netstat -an | grep 8081 | grep LISTEN || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
