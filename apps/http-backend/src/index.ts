@@ -21,6 +21,10 @@ const corsOptions = {
             'http://16.16.79.127',
             'http://16.16.79.127:3002',
             'http://16.16.79.127:3000',
+            'http://glyph-board.xyz',
+            'http://www.glyph-board.xyz',
+            'https://glyph-board.xyz',
+            'https://www.glyph-board.xyz',
         ];
 
         if (allowedOrigins.indexOf(origin) !== -1) {

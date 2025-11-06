@@ -112,9 +112,12 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3002
-      # ⚠️ REPLACE YOUR_EC2_PUBLIC_IP WITH YOUR ACTUAL EC2 IP ADDRESS
-      - NEXT_PUBLIC_API_URL=http://16.16.79.127/api
-      - NEXT_PUBLIC_WS_URL=ws://16.16.79.127/ws
+      # Domain-based URLs (if you have a domain)
+      - NEXT_PUBLIC_API_URL=http://api.glyph-board.xyz
+      - NEXT_PUBLIC_WS_URL=ws://ws.glyph-board.xyz
+      # IP-based URLs (uncomment if using IP instead of domain)
+      # - NEXT_PUBLIC_API_URL=http://16.16.79.127/api
+      # - NEXT_PUBLIC_WS_URL=ws://16.16.79.127/ws
     ports:
       - "3002:3002"
     depends_on:
@@ -139,7 +142,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx-conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Domain-based config (for glyph-board.xyz subdomains)
+      - ./nginx-conf/nginx-prod.config:/etc/nginx/nginx.conf:ro
+      # IP-based config (uncomment if using IP address instead)
+      # - ./nginx-conf/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       frontend:
         condition: service_healthy
